@@ -1,6 +1,6 @@
 #include "Market.h"
 
-Market::Market(long long n, long m) {
+Market::Market(long long n, long m) : m_mechanics(500) { // Default market pace of 500 matches/turn
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->createTickers(n);
@@ -9,7 +9,7 @@ Market::Market(long long n, long m) {
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) {
+Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(500) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->m_playerV = ps;
@@ -18,7 +18,7 @@ Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) {
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts) {
+Market::Market(std::vector<Ticker> ts) : m_mechanics(500) {
     this->m_tickerV.clear();
     this->m_playerV.clear();
     this->m_tickerV = ts;
@@ -43,14 +43,14 @@ void Market::createTickers(long long n) {
         }
     }
     std::vector<long long> volumes(ticks.size());
-    std::vector<float> prices(ticks.size());
+    std::vector<double> prices(ticks.size());
     std::uniform_int_distribution<long long> r_longlong(100'000, 1'000'000);
-    std::uniform_real_distribution<float> r_float(1., 50.);
+    std::uniform_real_distribution<double> r_double(1., 50.);
     for (auto& v : volumes) {
         v = r_longlong(re);
     }
     for (auto& p : prices) {
-        p = r_float(re);
+        p = r_double(re);
     }
     auto iterVs = volumes.begin();
     auto iterPs = prices.begin();
@@ -70,21 +70,41 @@ void Market::createPlayers(long m) {
         p = buff + std::to_string(i);
         i++;
     }
+
     std::random_device rd;
     std::default_random_engine re(rd());
     std::uniform_int_distribution<long long> r_longlong(1'000, 1'000'000);
+
+    // Uniform random integer generator for typologies: 1 (Noise), 2 (Momentum), 3 (Value)
+    std::uniform_int_distribution<int> r_behavior(1, 3);
+
+    std::uniform_int_distribution<size_t> distTick(0, this->m_tickerV.size() - 1);
+    std::uniform_real_distribution<double> distShares(10.0, 100.0);
+
     for (auto& c : capitals) {
         c = r_longlong(re);
     }
+
     auto iterCs = capitals.begin();
     for (auto& p : players) {
-        this->m_playerV.push_back(Player(p, *iterCs));
+        Player newPlayer(p, *iterCs);
+        newPlayer.setBehaviour(r_behavior(re));
+
+        // Give them a couple of random starting shares so they can sell!
+        std::string randomTicker = this->m_tickerV[distTick(re)].getName();
+        newPlayer.addPortofolio(randomTicker, distShares(re));
+
+        this->m_playerV.push_back(newPlayer);
         ++iterCs;
     }
 }
 
 void Market::updateMarket() {
-    this->fulfillOrders();
+    this->placeOrders(); // Populate orders from players/bots into the LOB mechanics
+
+    // Pass execution control to the Order Book & Market Pace engine
+    this->m_mechanics.processBook(this->m_tickerV, this->m_playerV);
+
     ++date;
     this->recordMarket();
     this->updateIndeces();
@@ -96,7 +116,7 @@ void Market::fulfillOrders() {
             for (auto& t : this->m_tickerV) {
                 if (t.getName().compare(o.first) == 0) {
                     //std::cout << t.getName() << ": " << t.getPrice();
-                    long long STB = static_cast<long long>(std::floor(static_cast<float>(o.second.first) / t.getPrice()));
+                    long long STB = static_cast<long long>(std::floor(static_cast<double>(o.second.first) / t.getPrice()));
                     bool buyingMaxStock = (STB >= (t.getVolume() / 5)) ? true : false;
                     if (buyingMaxStock) {
                         STB = t.getVolume() / 3;
@@ -107,10 +127,7 @@ void Market::fulfillOrders() {
                     long long diff = o.second.first - static_cast<long long>(STB * t.getPrice());
                     p.setCapital(p.getCapital() + diff);
                     p.deleteBuyOrder(o.first);
-                    t.setPrice((static_cast<float>(t.getCapitalization()) + static_cast<float>(STB) * t.getPrice()) / static_cast<float>(t.getVolume()));
-                    //std::cout << t.getVolume() / STB << std::endl;
-                    //std::cout << (static_cast<float>(t.getCapitalization()) + static_cast<float>(STB) * t.getPrice()) / static_cast<float>(t.getVolume()) << std::endl;
-                    //std::cout << " --> " << t.getPrice() << std::endl;
+                    t.setPrice((static_cast<double>(t.getCapitalization()) + static_cast<double>(STB) * t.getPrice()) / static_cast<double>(t.getVolume()));
                 }
             }
         }
@@ -120,12 +137,61 @@ void Market::fulfillOrders() {
 void Market::placeOrders() {
     std::random_device rd;
     std::default_random_engine re(rd());
-    int sz = this->m_tickerV.size();
-    std::uniform_int_distribution<int> r_tick(0, sz - 1);
+    // Random price variance distribution: between -3% and +3%
+    std::uniform_real_distribution<double> priceVariance(-0.03, 0.03);
+
+    // 1. Let all players make their daily trading decisions
     for (auto& p : this->m_playerV) {
-        std::uniform_int_distribution<int> r_capital(p.getCapital() / 6, p.getCapital() / 4);
-        p.addBuyOrder(this->m_tickerV.at(r_tick(re)).getName(), r_capital(re), date + 5);
-        //p.showOrders();
+        p.makeDecision(this->m_tickerV, date);
+    }
+
+    // 2. Transfer player buy orders into MarketMechanics with price variance
+    for (auto& p : this->m_playerV) {
+        auto buyOrders = p.getBuyOrders();
+        for (const auto& ord : buyOrders) {
+            std::string tickerName = ord.first;
+            double spendAmount = ord.second.first;
+
+            auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
+                return t.getName() == tickerName;
+                });
+
+            if (it != m_tickerV.end() && it->getPrice() > 0.0) {
+                // Add slight randomized markup/markdown so bids cross at dynamic prices
+                double basePrice = it->getPrice();
+                double targetPrice = basePrice * (1.0 + priceVariance(re));
+                double quantity = spendAmount / targetPrice;
+
+                if (quantity > 0.0) {
+                    this->m_mechanics.addOrder(tickerName, targetPrice, quantity, true, p.getName());
+                }
+            }
+        }
+
+        // 3. Transfer player sell orders into MarketMechanics with price variance
+        auto sellOrders = p.getSellOrders();
+        for (const auto& ord : sellOrders) {
+            std::string tickerName = ord.first;
+            double sharesToSell = ord.second.first;
+
+            auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
+                return t.getName() == tickerName;
+                });
+
+            if (it != m_tickerV.end()) {
+                double basePrice = it->getPrice();
+                // Add slight randomized variance for asks
+                double targetPrice = basePrice * (1.0 + priceVariance(re));
+
+                if (sharesToSell > 0.0) {
+                    this->m_mechanics.addOrder(tickerName, targetPrice, sharesToSell, false, p.getName());
+                }
+            }
+        }
+
+        // Clear player order maps for the next turn
+        p.deleteBuyOrder("*");
+        p.deleteSellOrder("*");
     }
 }
 
@@ -151,31 +217,31 @@ struct {
     }
 } orderPrice;
 
-float getStdDev(std::vector<float> in) {
-    float n = 0., sumV = 0.;
+double getStdDev(std::vector<double> in) {
+    double n = 0., sumV = 0.;
     for (auto& val : in) {
         sumV += val;
         n++;
     }
-    float miu = sumV / n;
+    double miu = sumV / n;
     sumV = 0.;
     for (auto& val : in) {
         sumV += pow(val - miu, 2.);
     }
-    float result = sqrt(sumV / n);
+    double result = sqrt(sumV / n);
     return result;
 }
 
 void Market::updateIndeces() {
-    int perc = static_cast<int>(std::ceil(static_cast<float>(this->m_tickerV.size()) / 100.));
-    float sumPrices = 0.;
+    int perc = static_cast<int>(std::ceil(static_cast<double>(this->m_tickerV.size()) / 100.));
+    double sumPrices = 0.;
 
     //MEAN PRICE FOR 1% OF PRICEs
     std::sort(this->m_tickerV.begin(), this->m_tickerV.end(), orderCapital);
     for (int i = 0; i < perc; i++) {
         sumPrices += this->m_tickerV.at(i).getPrice();
     }
-    this->m_percCap.push_back(sumPrices / static_cast<float>(perc));
+    this->m_percCap.push_back(sumPrices / static_cast<double>(perc));
 
     //MEAN PRICE FOR 1% OF CAP
     std::sort(this->m_tickerV.begin(), this->m_tickerV.end(), orderPrice);
@@ -183,40 +249,52 @@ void Market::updateIndeces() {
     for (int i = 0; i < perc; i++) {
         sumPrices += this->m_tickerV.at(i).getPrice();
     }
-    this->m_percPrice.push_back(sumPrices / static_cast<float>(perc));
+    this->m_percPrice.push_back(sumPrices / static_cast<double>(perc));
 
     //VOLATILITY
     sumPrices = 0.;
     for (auto& p : this->m_priceHistory) {
         sumPrices += getStdDev(p.second);
     }
-    this->m_volatility.push_back(sumPrices / static_cast<float>(this->m_priceHistory.size()));
+    this->m_volatility.push_back(sumPrices / static_cast<double>(this->m_priceHistory.size()));
 
     //COHERENCE
     sumPrices = 0.;
-    std::vector<float> caps;
+    std::vector<double> caps;
     for (auto& t : this->m_tickerV) {
         caps.push_back(t.getCapitalization());
     }
     this->m_coherence.push_back(getStdDev(caps));
 }
 
-std::vector<float> Market::getVolatility() {
+const std::vector<Player>& Market::getPlayers() const {
+    return this->m_playerV;
+}
+
+const std::vector<Ticker>& Market::getTickers() const {
+    return this->m_tickerV;
+}
+
+std::vector<double> Market::getVolatility() {
     return this->m_volatility;
 }
 
-std::vector<float> Market::getCoherence() {
+std::vector<double> Market::getCoherence() {
     return this->m_coherence;
 }
 
-std::vector<float> Market::getpercPrice() {
+std::vector<double> Market::getpercPrice() {
     return this->m_percPrice;
 }
 
-std::vector<float> Market::getpercCap() {
+std::vector<double> Market::getpercCap() {
     return this->m_percCap;
 }
 
 void Market::readMarket(Player p) {
 
+}
+
+std::vector<double> Market::getTickerPriceHisto(std::string t) {
+    return this->m_priceHistory[t];
 }

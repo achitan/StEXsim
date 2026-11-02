@@ -141,19 +141,23 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Market.cpp" />
+    <ClCompile Include="MarketMechanics.cpp" />
     <ClCompile Include="Owner.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Plotter.cpp" />
     <ClCompile Include="Stock.cpp" />
     <ClCompile Include="StockExchangeSim.cpp" />
+    <ClCompile Include="TechnicalAnalyzer.cpp" />
     <ClCompile Include="Ticker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Market.h" />
+    <ClInclude Include="MarketMechanics.h" />
     <ClInclude Include="Owner.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Plotter.h" />
     <ClInclude Include="Stock.h" />
+    <ClInclude Include="TechnicalAnalyzer.h" />
     <ClInclude Include="Ticker.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

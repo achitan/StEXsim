@@ -8,19 +8,23 @@
 class Ticker {
 private:
 	std::string m_name;
-	long long m_volume;
-	float m_price;
+	double m_volume;
+	double m_price;
 
 public:
 	Ticker();
-	Ticker(std::string n, long long v, float p);
-	Ticker(std::string n, long long c);
+	Ticker(std::string n, double v, double p);
+	Ticker(std::string n, double c);
+
 	void setName(std::string n);
-	std::string getName();
-	void setPrice(float p);
-	float getPrice();
-	void setVolume(long long v);
-	void emitVolume(long long v, float p);
-	long long getCapitalization();
-	long long getVolume();
+	std::string getName() const; // Added const
+
+	void setPrice(double p);
+	float getPrice() const;     // Added const
+
+	void setVolume(double v);
+	long long getVolume() const;// Added const
+
+	void emitVolume(double v, double p);
+	long long getCapitalization() const; // Added const
 };
