@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="Market.cpp" />
     <ClCompile Include="MarketEvent.cpp" />
+    <ClCompile Include="MarketException.cpp" />
     <ClCompile Include="MarketMechanics.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Plotter.cpp" />
@@ -152,6 +153,7 @@
   <ItemGroup>
     <ClInclude Include="Market.h" />
     <ClInclude Include="MarketEvent.h" />
+    <ClInclude Include="MarketException.h" />
     <ClInclude Include="MarketMechanics.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Plotter.h" />
