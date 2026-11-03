@@ -192,6 +192,26 @@ void Player::makeDecision(const std::vector<Ticker>& tickers, unsigned int curre
 		}
 		break;
 	}
+	case 4: { // INVESTMENT BANK: Massive capital, heavy weight, executes block orders
+		if (this->m_capital < 1000000) break; // Needs heavy capital to operate
+
+		// Select a high-value or random target ticker
+		std::uniform_int_distribution<size_t> distTick(0, tickers.size() - 1);
+		const auto& chosenTicker = tickers[distTick(re)];
+
+		// Large block order capital allocation (e.g., 10% to 25% of massive capital)
+		std::uniform_real_distribution<double> distBlockAlloc(0.10, 0.25);
+		long long heavySpend = static_cast<long long>(this->m_capital * distBlockAlloc(re));
+
+		double targetPrice = chosenTicker.getPrice();
+		long long heavyQty = static_cast<long long>(heavySpend / targetPrice);
+
+		if (heavyQty > 0 && this->m_capital >= heavySpend) {
+			// Places a heavy buy order that shifts market depth
+			this->addBuyOrder(chosenTicker.getName(), heavySpend, currentDay + 1);
+		}
+		break;
+	}
 	default: {
 		break;
 	}

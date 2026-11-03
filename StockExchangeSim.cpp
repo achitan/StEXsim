@@ -86,11 +86,11 @@ int main() {
         return a.calculateNetWorth(market.getTickers()) > b.calculateNetWorth(market.getTickers());
         });
 
-    for (size_t i = 0; i < std::min<size_t>(3, allPlayers.size()); ++i) {
+    for (size_t i = 3; i < std::min<size_t>(6, allPlayers.size()); ++i) {
         const auto& p = allPlayers[i];
         double netWorth = p.calculateNetWorth(market.getTickers());
 
-        std::cout << i + 1 << ". Player Name: " << p.getName()
+        std::cout << i - 2 << ". Player Name: " << p.getName()
             << " | Typology: " << p.getBehaviour()
             << " | Net Worth: $" << netWorth
             << " | Cash Capital: $" << p.getCapital() << std::endl;

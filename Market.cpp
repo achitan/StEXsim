@@ -74,27 +74,52 @@ void Market::createPlayers(long m) {
 
     std::random_device rd;
     std::default_random_engine re(rd());
-    std::uniform_int_distribution<long long> r_longlong(1'000, 1'000'000);
 
+    // Standard retail capital range
+    std::uniform_int_distribution<long long> r_longlong(1'000, 1'000'000);
+    // Massive capital range for Investment Banks (e.g., 50M to 200M)
+    std::uniform_int_distribution<long long> r_ib_capital(50'000'000, 200'000'000);
+
+    // Uniform random integer generator for retail typologies: 1 (Noise), 2 (Momentum), 3 (Value)
     std::uniform_int_distribution<int> r_behavior(1, 3);
 
     std::uniform_int_distribution<size_t> distTick(0, this->m_tickerV.size() - 1);
     std::uniform_real_distribution<double> distShares(10.0, 100.0);
+    std::uniform_real_distribution<double> distIB_Shares(1000.0, 5000.0); // Heavier starting inventory for IBs
 
     for (auto& c : capitals) {
         c = r_longlong(re);
     }
 
     auto iterCs = capitals.begin();
+    long playerIndex = 0;
+
     for (auto& p : players) {
-        Player newPlayer(p, *iterCs);
-        newPlayer.setBehaviour(r_behavior(re));
+        // Designate the first few players (e.g., playerIndex < 3) as Investment Banks (Typology 4)
+        if (playerIndex < 3) {
+            long long massiveCapital = r_ib_capital(re);
+            Player ibPlayer(p, massiveCapital);
+            ibPlayer.setBehaviour(4); // Investment Bank behavior
 
-        std::string randomTicker = this->m_tickerV[distTick(re)].getName();
-        newPlayer.addPortofolio(randomTicker, distShares(re));
+            // Give them heavy starting inventory
+            std::string randomTicker = this->m_tickerV[distTick(re)].getName();
+            ibPlayer.addPortofolio(randomTicker, distIB_Shares(re));
 
-        this->m_playerV.push_back(newPlayer);
+            this->m_playerV.push_back(ibPlayer);
+        }
+        else {
+            // Standard retail/algorithmic players (1, 2, or 3)
+            Player newPlayer(p, *iterCs);
+            newPlayer.setBehaviour(r_behavior(re));
+
+            std::string randomTicker = this->m_tickerV[distTick(re)].getName();
+            newPlayer.addPortofolio(randomTicker, distShares(re));
+
+            this->m_playerV.push_back(newPlayer);
+        }
+
         ++iterCs;
+        ++playerIndex;
     }
 }
 
