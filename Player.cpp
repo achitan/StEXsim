@@ -29,9 +29,24 @@ void Player::addBuyOrder(std::string t, double c, unsigned int d) {
 	this->m_capital -= c;
 }
 
-void Player::addSellOrder(std::string t, double v, unsigned int d) {
-	this->m_sellmap[t].first += v;
-	this->m_sellmap[t].second = d;
+void Player::addSellOrder(const std::string& tickerName, double quantity, unsigned int targetDay) {
+	double sharesOwned = 0.0;
+	auto it = m_portofolio.find(tickerName);
+	if (it != m_portofolio.end()) {
+		sharesOwned = it->second;
+	}
+
+	// Short-selling validation (if selling more than you own)
+	if (quantity > sharesOwned) {
+		double shortShares = quantity - sharesOwned;
+		double estimatedCollateralNeeded = shortShares * 10.0; // Adjust collateral rule if needed
+		if (m_capital < estimatedCollateralNeeded) {
+			return; // Reject order if not enough capital to back the short
+		}
+	}
+
+	this->m_sellmap[tickerName].first += quantity;
+	this->m_sellmap[tickerName].second = targetDay;
 }
 
 void Player::deleteSellOrder(std::string t) {
@@ -108,21 +123,25 @@ std::string Player::getName() const {
 }
 
 double Player::calculateNetWorth(const std::vector<Ticker>& tickers) const {
-	double totalWealth = this->m_capital;
+	double totalNetWorth = this->m_capital;
+
 	for (const auto& holding : this->m_portofolio) {
 		std::string tickerName = holding.first;
-		double shares = holding.second;
+		double quantity = holding.second; // Can be negative if short!
 
-		// Find current price of the ticker
+		// Find current market price of the ticker
 		auto it = std::find_if(tickers.begin(), tickers.end(), [&](const Ticker& t) {
 			return t.getName() == tickerName;
 			});
 
 		if (it != tickers.end()) {
-			totalWealth += shares * it->getPrice();
+			totalNetWorth += quantity * it->getPrice();
+			// If quantity is negative (short position), holding quantity * price 
+			// correctly subtracts the liability from their net worth!
 		}
 	}
-	return totalWealth;
+
+	return totalNetWorth;
 }
 
 void Player::makeDecision(const std::vector<Ticker>& tickers, unsigned int currentDay) {

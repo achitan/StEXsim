@@ -1,7 +1,7 @@
 #include "Market.h"
 #include "MarketEvent.h"
 
-Market::Market(long long n, long m) : m_mechanics(500) {
+Market::Market(long long n, long m) : m_mechanics(5) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->createTickers(n);
@@ -10,7 +10,7 @@ Market::Market(long long n, long m) : m_mechanics(500) {
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(500) {
+Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(5) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->m_playerV = ps;
@@ -19,7 +19,7 @@ Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(500
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts) : m_mechanics(500) {
+Market::Market(std::vector<Ticker> ts) : m_mechanics(5) {
     this->m_tickerV.clear();
     this->m_playerV.clear();
     this->m_tickerV = ts;

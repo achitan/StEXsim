@@ -28,10 +28,19 @@ void MarketMechanics::addOrder(const std::string& ticker, double price, long lon
 void MarketMechanics::processBook(std::vector<Ticker>& tickers, std::vector<Player>& players) {
     long long processedTransactions = 0;
 
+    // Helper lambda to find players easily by name
+    auto findPlayer = [&](const std::string& name) -> Player* {
+        for (auto& p : players) {
+            if (p.getName() == name) {
+                return &p;
+            }
+        }
+        return nullptr;
+        };
+
     for (auto& ticker : tickers) {
         std::string tName = ticker.getName();
 
-        // Match orders as long as we haven't hit the market pace limit and orders exist
         while (processedTransactions < m_marketPace &&
             !m_bidBooks[tName].empty() &&
             !m_askBooks[tName].empty()) {
@@ -39,35 +48,32 @@ void MarketMechanics::processBook(std::vector<Ticker>& tickers, std::vector<Play
             Order bestBid = m_bidBooks[tName].top();
             Order bestAsk = m_askBooks[tName].top();
 
-            // Check if a trade can occur (Bid price >= Ask price)
             if (bestBid.price >= bestAsk.price) {
                 m_bidBooks[tName].pop();
                 m_askBooks[tName].pop();
 
                 long long tradeQty = std::min(bestBid.quantity, bestAsk.quantity);
-                double executionPrice = bestAsk.price;
+                float executionPrice = bestAsk.price;
 
-                // Update Ticker Price & Volume (This moves the price!)
+                // 1. Update Ticker Price & Volume
                 ticker.emitVolume(tradeQty, executionPrice);
 
-                ticker.setPrice(executionPrice);
+                // 2. Locate Buyer and Seller
+                Player* buyer = findPlayer(bestBid.playerName);
+                Player* seller = findPlayer(bestAsk.playerName);
 
-                // Find buyer and seller objects
-                Player* buyer = nullptr;
-                Player* seller = nullptr;
-                for (auto& p : players) {
-                    if (p.getName() == bestBid.playerName) buyer = &p;
-                    if (p.getName() == bestAsk.playerName) seller = &p;
-                }
-
-                // Transfer cash and shares between buyer and seller
                 double totalCost = tradeQty * executionPrice;
+
+                // 3. Settlement for Buyer
                 if (buyer) {
-                    buyer->addPortofolio(tName, tradeQty);
-                    buyer->setCapital(buyer->getCapital() - totalCost); // Deduct cash from buyer
+                    buyer->setCapital(buyer->getCapital() - totalCost);
+                    buyer->addPortofolio(tName, static_cast<double>(tradeQty));
                 }
+
+                // 4. Settlement for Seller (Handles short-selling automatically if portfolio goes negative)
                 if (seller) {
-                    seller->setCapital(seller->getCapital() + totalCost); // Add cash to seller via arrow operator ->
+                    seller->setCapital(seller->getCapital() + totalCost);
+                    seller->addPortofolio(tName, -static_cast<double>(tradeQty));
                 }
 
                 processedTransactions++;
@@ -83,13 +89,12 @@ void MarketMechanics::processBook(std::vector<Ticker>& tickers, std::vector<Play
                 }
             }
             else {
-                // No cross between highest bid and lowest ask for this ticker
                 break;
             }
         }
 
         if (processedTransactions >= m_marketPace) {
-            break; // Market throughput ceiling reached for this turn
+            break;
         }
     }
 }

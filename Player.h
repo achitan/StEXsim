@@ -27,7 +27,7 @@ public:
 	std::string getName() const;
 
 	void addBuyOrder(std::string t, double c, unsigned int d);
-	void addSellOrder(std::string t, double v, unsigned int d);
+	void addSellOrder(const std::string& tickerName, double quantity, unsigned int targetDay);
 
 	void deleteSellOrder(std::string t);
 	void deleteBuyOrder(std::string t);
