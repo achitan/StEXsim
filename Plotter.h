@@ -19,7 +19,7 @@ private:
 
 public:
     explicit Plotter(size_t width = 80, size_t height = 20);
-    void plot_line(const std::vector<double>& data);
+    void plot_line(const std::vector<double>& data, char marker = '*');
     void plot_histo(const std::vector<double>& data, size_t noBins = 10);
     void render() const;
 };

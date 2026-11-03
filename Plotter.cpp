@@ -29,8 +29,8 @@ void Plotter::plot_char(size_t x, size_t y, char c) {
     }
 }
 
-void Plotter::plot_line(const std::vector<double>& data) {
-    clear_canvas();
+void Plotter::plot_line(const std::vector<double>& data, char marker) {
+    //clear_canvas();
     if (data.empty()) return;
 
     // 1. Core Bounds Checking
@@ -60,7 +60,7 @@ void Plotter::plot_line(const std::vector<double>& data) {
         // Scale cleanly into row rows
         size_t y_screen = 1 + static_cast<size_t>(std::round(norm_y * (plot_height - 1)));
 
-        plot_char(x_screen, y_screen, '*');
+        plot_char(x_screen, y_screen, marker);
     }
 }
 

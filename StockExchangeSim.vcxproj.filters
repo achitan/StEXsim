@@ -21,13 +21,7 @@
     <ClCompile Include="Ticker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Stock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Player.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Owner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Market.cpp">
@@ -47,13 +41,7 @@
     <ClInclude Include="Ticker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Stock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Owner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Market.h">

@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="StockExchangeSim.vcxproj" />
+  <Project Path="StockExchangeSim.vcxproj" Id="9aa7b220-a4a6-4b9a-ba65-6593e11dcd7c" />
 </Solution>
