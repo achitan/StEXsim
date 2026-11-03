@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <queue>
+#include <mutex> // Required for thread synchronization
 #include "Ticker.h"
 #include "Player.h"
 
@@ -34,6 +35,8 @@ private:
     std::map<std::string, std::priority_queue<Order, std::vector<Order>, CompareAsks>> m_askBooks;
     int m_nextOrderId;
 
+    std::mutex m_orderBookMutex; // Protects order book queues during concurrent additions
+
 public:
     MarketMechanics(long long marketPace);
 
@@ -41,6 +44,5 @@ public:
     long long getMarketPace() const;
 
     void addOrder(const std::string& ticker, double price, long long quantity, bool isBuy, const std::string& playerName);
-
     void processBook(std::vector<Ticker>& tickers, std::vector<Player>& players);
 };

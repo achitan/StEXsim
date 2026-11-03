@@ -163,57 +163,76 @@ void Market::fulfillOrders() {
 }
 
 void Market::placeOrders() {
-    std::random_device rd;
-    std::default_random_engine re(rd());
-    std::uniform_real_distribution<double> priceVariance(-0.03, 0.03);
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4; // Fallback if hardware concurrency can't be detected
 
-    for (auto& p : this->m_playerV) {
-        p.makeDecision(this->m_tickerV, date);
-    }
+    size_t totalPlayers = m_playerV.size();
+    size_t chunkSz = (totalPlayers + numThreads - 1) / numThreads;
 
-    for (auto& p : this->m_playerV) {
-        auto buyOrders = p.getBuyOrders();
-        for (const auto& ord : buyOrders) {
-            std::string tickerName = ord.first;
-            double spendAmount = ord.second.first;
+    std::vector<std::jthread> threads;
+    threads.reserve(numThreads);
 
-            auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
-                return t.getName() == tickerName;
-                });
+    for (unsigned int i = 0; i < numThreads; ++i) {
+        size_t startIdx = i * chunkSz;
+        size_t endIdx = std::min(startIdx + chunkSz, totalPlayers);
 
-            if (it != m_tickerV.end() && it->getPrice() > 0.0) {
-                double basePrice = it->getPrice();
-                double targetPrice = basePrice * (1.0 + priceVariance(re));
-                double quantity = spendAmount / targetPrice;
+        if (startIdx >= endIdx) break;
 
-                if (quantity > 0.0) {
-                    this->m_mechanics.addOrder(tickerName, targetPrice, quantity, true, p.getName());
+        // Launch worker threads to process chunks of players in parallel
+        threads.emplace_back([this, startIdx, endIdx]() {
+            std::random_device rd;
+            std::default_random_engine re(rd() + startIdx); // Unique seed per thread
+            std::uniform_real_distribution<double> priceVariance(-0.03, 0.03);
+
+            for (size_t j = startIdx; j < endIdx; ++j) {
+                auto& p = m_playerV[j];
+                p.makeDecision(this->m_tickerV, date);
+
+                auto buyOrders = p.getBuyOrders();
+                for (const auto& ord : buyOrders) {
+                    std::string tickerName = ord.first;
+                    double spendAmount = ord.second.first;
+
+                    auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
+                        return t.getName() == tickerName;
+                        });
+
+                    if (it != m_tickerV.end() && it->getPrice() > 0.0) {
+                        double basePrice = it->getPrice();
+                        double targetPrice = basePrice * (1.0 + priceVariance(re));
+                        double quantity = spendAmount / targetPrice;
+
+                        if (quantity > 0.0) {
+                            this->m_mechanics.addOrder(tickerName, targetPrice, quantity, true, p.getName());
+                        }
+                    }
                 }
-            }
-        }
 
-        auto sellOrders = p.getSellOrders();
-        for (const auto& ord : sellOrders) {
-            std::string tickerName = ord.first;
-            double sharesToSell = ord.second.first;
+                auto sellOrders = p.getSellOrders();
+                for (const auto& ord : sellOrders) {
+                    std::string tickerName = ord.first;
+                    double sharesToSell = ord.second.first;
 
-            auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
-                return t.getName() == tickerName;
-                });
+                    auto it = std::find_if(m_tickerV.begin(), m_tickerV.end(), [&](const Ticker& t) {
+                        return t.getName() == tickerName;
+                        });
 
-            if (it != m_tickerV.end()) {
-                double basePrice = it->getPrice();
-                double targetPrice = basePrice * (1.0 + priceVariance(re));
+                    if (it != m_tickerV.end()) {
+                        double basePrice = it->getPrice();
+                        double targetPrice = basePrice * (1.0 + priceVariance(re));
 
-                if (sharesToSell > 0.0) {
-                    this->m_mechanics.addOrder(tickerName, targetPrice, sharesToSell, false, p.getName());
+                        if (sharesToSell > 0.0) {
+                            this->m_mechanics.addOrder(tickerName, targetPrice, sharesToSell, false, p.getName());
+                        }
+                    }
                 }
-            }
-        }
 
-        p.deleteBuyOrder("*");
-        p.deleteSellOrder("*");
+                p.deleteBuyOrder("*");
+                p.deleteSellOrder("*");
+            }
+            });
     }
+    // std::jthread automatically joins all threads here when going out of scope
 }
 
 void Market::recordMarket() {

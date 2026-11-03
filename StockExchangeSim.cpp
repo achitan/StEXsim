@@ -13,8 +13,8 @@ unsigned int Market::date = 0;
 
 int main() {
     // 1. Initialize Market with 100 Tickers and 50 Players
-    long no_tickers = 1000;
-    long no_players = 500;
+    long no_tickers = 2400;
+    long no_players = 10000;
     Market market(no_tickers, no_players);
 
     std::cout << "Starting Stock Exchange Simulation with " << no_tickers << " Tickers and " << no_players << " Players...\n" << std::endl;

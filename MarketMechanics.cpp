@@ -16,6 +16,7 @@ long long MarketMechanics::getMarketPace() const {
 }
 
 void MarketMechanics::addOrder(const std::string& ticker, double price, long long quantity, bool isBuy, const std::string& playerName) {
+    std::lock_guard<std::mutex> lock(m_orderBookMutex); // Thread-safe order book push
     Order ord{ m_nextOrderId++, playerName, price, quantity, isBuy };
     if (isBuy) {
         m_bidBooks[ticker].push(ord);

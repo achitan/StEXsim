@@ -6,6 +6,7 @@
 #include <map>
 #include <random>
 #include <algorithm>
+#include <thread>
 
 #include "Ticker.h"
 #include "Player.h"
