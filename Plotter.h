@@ -3,16 +3,21 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <concepts>
-#include <type_traits>
 #include <cmath>
-#include <map>
+#include <iomanip>
+#include <sstream>
 
 class Plotter {
 private:
     size_t m_width;
     size_t m_height;
     std::vector<std::string> m_canvas;
+
+    struct Series {
+        std::vector<double> data;
+        char marker;
+    };
+    std::vector<Series> m_series_list;
 
     void clear_canvas();
     void plot_char(size_t x, size_t y, char c);

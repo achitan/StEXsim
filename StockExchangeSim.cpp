@@ -30,6 +30,7 @@ int main() {
     std::vector<double> targetTickerPrices;
     std::string selectedTickerName = "None";
 
+    double buffRatio = 1.;
     for (const auto& ticker : market.getTickers()) {
         std::string tName = ticker.getName();
         std::vector<double> history = market.getTickerPriceHisto(tName);
@@ -39,10 +40,11 @@ int main() {
             double maxP = *std::max_element(history.begin(), history.end());
 
             // Select the first ticker that experienced price movement
-            if (maxP != minP) {
+            if ((maxP / minP) > buffRatio) {
                 targetTickerPrices = history;
                 selectedTickerName = tName;
-                break;
+                buffRatio = maxP / minP;
+                //break;
             }
         }
     }
@@ -63,7 +65,7 @@ int main() {
     BollingerBands bb = TechnicalAnalyzer::calculateBollingerBands(targetTickerPrices, 5, 2.0);
 
     // 5. Render Actual Prices & Technical Overlay using ASCII Plotter
-    std::cout << "\n--- ASCII Chart: Prices & Bollinger Bands (" << selectedTickerName << ") ---\n" << std::endl;
+    std::cout << "\n--- ASCII Chart: Prices (" << selectedTickerName << ") ---\n" << std::endl;
     Plotter plotter(60, 20);
 
     // Plot actual prices and indicator lines
