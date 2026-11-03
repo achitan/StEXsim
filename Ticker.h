@@ -17,14 +17,14 @@ public:
 	Ticker(std::string n, double c);
 
 	void setName(std::string n);
-	std::string getName() const; // Added const
+	std::string getName() const;
 
 	void setPrice(double p);
-	float getPrice() const;     // Added const
+	float getPrice() const;
 
 	void setVolume(double v);
-	long long getVolume() const;// Added const
+	long long getVolume() const;
 
 	void emitVolume(double v, double p);
-	long long getCapitalization() const; // Added const
+	long long getCapitalization() const;
 };

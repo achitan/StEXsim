@@ -28,17 +28,6 @@ void MarketMechanics::addOrder(const std::string& ticker, double price, long lon
 void MarketMechanics::processBook(std::vector<Ticker>& tickers, std::vector<Player>& players) {
     long long processedTransactions = 0;
 
-    // Helper lambda to find a player by name quickly
-    auto findPlayer = [&](const std::string& name) -> Player* {
-        for (auto& p : players) {
-            if (p.getCapital() >= 0) { // placeholder check, match by name
-                // Assuming a getName() method exists on Player, or adjust based on your Player class
-                // If Player doesn't have getName(), you can add it or search accordingly.
-            }
-        }
-        return nullptr;
-        };
-
     for (auto& ticker : tickers) {
         std::string tName = ticker.getName();
 

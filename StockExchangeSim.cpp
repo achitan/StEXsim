@@ -59,12 +59,6 @@ int main() {
         selectedTickerName = "DemoTicker";
     }
 
-    // Print out the actual historical prices for inspection
-    //std::cout << "\n--- Price History for Ticker: " << selectedTickerName << " ---" << std::endl;
-    //for (size_t i = 0; i < targetTickerPrices.size(); ++i) {
-    //    std::cout << "Day " << (i + 1) << ": $" << targetTickerPrices[i] << std::endl;
-    //}
-
     // 4. Calculate Bollinger Bands (using standard BollingerBands struct)
     BollingerBands bb = TechnicalAnalyzer::calculateBollingerBands(targetTickerPrices, 5, 2.0);
 

@@ -1,6 +1,7 @@
 #include "Market.h"
+#include "MarketEvent.h"
 
-Market::Market(long long n, long m) : m_mechanics(500) { // Default market pace of 500 matches/turn
+Market::Market(long long n, long m) : m_mechanics(500) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->createTickers(n);
@@ -75,7 +76,6 @@ void Market::createPlayers(long m) {
     std::default_random_engine re(rd());
     std::uniform_int_distribution<long long> r_longlong(1'000, 1'000'000);
 
-    // Uniform random integer generator for typologies: 1 (Noise), 2 (Momentum), 3 (Value)
     std::uniform_int_distribution<int> r_behavior(1, 3);
 
     std::uniform_int_distribution<size_t> distTick(0, this->m_tickerV.size() - 1);
@@ -90,7 +90,6 @@ void Market::createPlayers(long m) {
         Player newPlayer(p, *iterCs);
         newPlayer.setBehaviour(r_behavior(re));
 
-        // Give them a couple of random starting shares so they can sell!
         std::string randomTicker = this->m_tickerV[distTick(re)].getName();
         newPlayer.addPortofolio(randomTicker, distShares(re));
 
@@ -100,10 +99,11 @@ void Market::createPlayers(long m) {
 }
 
 void Market::updateMarket() {
-    this->placeOrders(); // Populate orders from players/bots into the LOB mechanics
+    this->placeOrders();
 
-    // Pass execution control to the Order Book & Market Pace engine
     this->m_mechanics.processBook(this->m_tickerV, this->m_playerV);
+
+    MarketEvent::processEvents(this->m_tickerV, date);
 
     ++date;
     this->recordMarket();
@@ -115,7 +115,6 @@ void Market::fulfillOrders() {
         for (auto& o : p.getBuyOrders()) {
             for (auto& t : this->m_tickerV) {
                 if (t.getName().compare(o.first) == 0) {
-                    //std::cout << t.getName() << ": " << t.getPrice();
                     long long STB = static_cast<long long>(std::floor(static_cast<double>(o.second.first) / t.getPrice()));
                     bool buyingMaxStock = (STB >= (t.getVolume() / 5)) ? true : false;
                     if (buyingMaxStock) {
@@ -137,15 +136,12 @@ void Market::fulfillOrders() {
 void Market::placeOrders() {
     std::random_device rd;
     std::default_random_engine re(rd());
-    // Random price variance distribution: between -3% and +3%
     std::uniform_real_distribution<double> priceVariance(-0.03, 0.03);
 
-    // 1. Let all players make their daily trading decisions
     for (auto& p : this->m_playerV) {
         p.makeDecision(this->m_tickerV, date);
     }
 
-    // 2. Transfer player buy orders into MarketMechanics with price variance
     for (auto& p : this->m_playerV) {
         auto buyOrders = p.getBuyOrders();
         for (const auto& ord : buyOrders) {
@@ -157,7 +153,6 @@ void Market::placeOrders() {
                 });
 
             if (it != m_tickerV.end() && it->getPrice() > 0.0) {
-                // Add slight randomized markup/markdown so bids cross at dynamic prices
                 double basePrice = it->getPrice();
                 double targetPrice = basePrice * (1.0 + priceVariance(re));
                 double quantity = spendAmount / targetPrice;
@@ -168,7 +163,6 @@ void Market::placeOrders() {
             }
         }
 
-        // 3. Transfer player sell orders into MarketMechanics with price variance
         auto sellOrders = p.getSellOrders();
         for (const auto& ord : sellOrders) {
             std::string tickerName = ord.first;
@@ -180,7 +174,6 @@ void Market::placeOrders() {
 
             if (it != m_tickerV.end()) {
                 double basePrice = it->getPrice();
-                // Add slight randomized variance for asks
                 double targetPrice = basePrice * (1.0 + priceVariance(re));
 
                 if (sharesToSell > 0.0) {
@@ -189,7 +182,6 @@ void Market::placeOrders() {
             }
         }
 
-        // Clear player order maps for the next turn
         p.deleteBuyOrder("*");
         p.deleteSellOrder("*");
     }
@@ -236,14 +228,12 @@ void Market::updateIndeces() {
     int perc = static_cast<int>(std::ceil(static_cast<double>(this->m_tickerV.size()) / 100.));
     double sumPrices = 0.;
 
-    //MEAN PRICE FOR 1% OF PRICEs
     std::sort(this->m_tickerV.begin(), this->m_tickerV.end(), orderCapital);
     for (int i = 0; i < perc; i++) {
         sumPrices += this->m_tickerV.at(i).getPrice();
     }
     this->m_percCap.push_back(sumPrices / static_cast<double>(perc));
 
-    //MEAN PRICE FOR 1% OF CAP
     std::sort(this->m_tickerV.begin(), this->m_tickerV.end(), orderPrice);
     sumPrices = 0.;
     for (int i = 0; i < perc; i++) {
@@ -251,14 +241,12 @@ void Market::updateIndeces() {
     }
     this->m_percPrice.push_back(sumPrices / static_cast<double>(perc));
 
-    //VOLATILITY
     sumPrices = 0.;
     for (auto& p : this->m_priceHistory) {
         sumPrices += getStdDev(p.second);
     }
     this->m_volatility.push_back(sumPrices / static_cast<double>(this->m_priceHistory.size()));
 
-    //COHERENCE
     sumPrices = 0.;
     std::vector<double> caps;
     for (auto& t : this->m_tickerV) {
