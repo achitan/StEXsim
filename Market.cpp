@@ -1,7 +1,7 @@
 #include "Market.h"
 #include "MarketEvent.h"
 
-Market::Market(long long n, long m) : m_mechanics(5) {
+Market::Market(long long n, long m) : m_mechanics(500) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->createTickers(n);
@@ -10,7 +10,7 @@ Market::Market(long long n, long m) : m_mechanics(5) {
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(5) {
+Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(500) {
     this->m_playerV.clear();
     this->m_tickerV.clear();
     this->m_playerV = ps;
@@ -19,7 +19,7 @@ Market::Market(std::vector<Ticker> ts, std::vector<Player> ps) : m_mechanics(5) 
     this->updateIndeces();
 }
 
-Market::Market(std::vector<Ticker> ts) : m_mechanics(5) {
+Market::Market(std::vector<Ticker> ts) : m_mechanics(500) {
     this->m_tickerV.clear();
     this->m_playerV.clear();
     this->m_tickerV = ts;
@@ -124,11 +124,15 @@ void Market::createPlayers(long m) {
 }
 
 void Market::updateMarket() {
+    // 1. Check margin calls and handle absolute bankruptcy for all players
+    for (auto& player : this->m_playerV) {
+        player.checkAndHandleMarginCall(this->m_tickerV, date);
+        player.handleBankruptcy(this->m_tickerV);
+    }
+
+    // 2. Standard daily order placement & mechanics processing
     this->placeOrders();
-
     this->m_mechanics.processBook(this->m_tickerV, this->m_playerV);
-
-    MarketEvent::processEvents(this->m_tickerV, date);
 
     ++date;
     this->recordMarket();

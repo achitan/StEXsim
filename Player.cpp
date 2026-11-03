@@ -49,6 +49,42 @@ void Player::addSellOrder(const std::string& tickerName, double quantity, unsign
 	this->m_sellmap[tickerName].second = targetDay;
 }
 
+void Player::checkAndHandleMarginCall(const std::vector<Ticker>& tickers, unsigned int currentDay) {
+	double currentNetWorth = this->calculateNetWorth(tickers);
+
+	// Maintenance Margin Rule: If Net Worth drops below 10% of total assets or goes negative, liquidate shorts!
+	if (currentNetWorth < 0.0) {
+		for (auto& holding : this->m_portofolio) {
+			std::string tickerName = holding.first;
+			double sharesHeld = holding.second;
+
+			// If the player holds a short position (negative shares)
+			if (sharesHeld < 0.0) {
+				double sharesToCover = std::abs(sharesHeld); // Total shares needed to cover
+
+				// Find current market price of the stock
+				auto it = std::find_if(tickers.begin(), tickers.end(), [&](const Ticker& t) {
+					return t.getName() == tickerName;
+					});
+
+				if (it != tickers.end()) {
+					double marketPrice = it->getPrice();
+					// Force-buy at current market price (or slightly higher to guarantee match)
+					double totalCoverCost = sharesToCover * marketPrice;
+
+					// Queue emergency buy order to close the short position
+					this->addBuyOrder(tickerName, totalCoverCost, currentDay);
+
+					//std::cout << "[MARGIN CALL BUSTER] Player " << this->m_name
+					//	<< " was forced to cover " << sharesToCover
+					//	<< " short shares of " << tickerName
+					//	<< " to avoid total bankruptcy!" << std::endl;
+				}
+			}
+		}
+	}
+}
+
 void Player::deleteSellOrder(std::string t) {
 	if (t.compare("*") == 0)
 		this->m_sellmap.clear();
@@ -61,6 +97,21 @@ void Player::deleteBuyOrder(std::string t) {
 		this->m_buymap.clear();
 	else
 		this->m_buymap.erase(t);
+}
+
+void Player::handleBankruptcy(const std::vector<Ticker>& tickers) {
+	double currentNetWorth = this->calculateNetWorth(tickers);
+
+	// Absolute Bankruptcy: Capital & Net Worth are both negative
+	if (this->m_capital < 0.0 && currentNetWorth < 0.0) {
+		// Wipe out remaining open short liabilities
+		for (auto& holding : this->m_portofolio) {
+			if (holding.second < 0.0) {
+				holding.second = 0.0; // Clear the short position
+			}
+		}
+		this->m_capital = 0.0; // Freeze liquid capital at zero
+	}
 }
 
 void Player::showOrders() {

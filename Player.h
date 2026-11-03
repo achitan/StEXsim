@@ -41,4 +41,6 @@ public:
 
 	void addPortofolio(std::string t, double v);
 	void makeDecision(const std::vector<Ticker>& tickers, unsigned int currentDay);
+	void checkAndHandleMarginCall(const std::vector<Ticker>& tickers, unsigned int currentDay);
+	void handleBankruptcy(const std::vector<Ticker>& tickers);
 };
